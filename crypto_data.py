@@ -1,18 +1,23 @@
-import streamlit as st
 import requests
+import streamlit as st
 import time
 
-# Fetch from Streamlit secrets
-API_KEY = st.secrets.get("COINGECKO_API_KEY", None)
+# Persistent cache (in module scope)
+_cache = {}
+_cache_timestamp = {}
+CACHE_TTL = 180  # 3 minutes
 
 def fetch_top_10_cryptos(currency="usd"):
-    global CACHE, CACHE_TIMESTAMP
     now = time.time()
 
-    if now - CACHE_TIMESTAMP < CACHE_TTL and currency in CACHE:
-        return CACHE[currency]
+    # Check cache validity
+    if currency in _cache and now - _cache_timestamp.get(currency, 0) < CACHE_TTL:
+        return _cache[currency]
 
-    headers = {"x-cg-pro-api-key": API_KEY} if API_KEY else {}
+    headers = {}
+    api_key = st.secrets.get("COINGECKO_API_KEY", None)
+    if api_key:
+        headers["x-cg-pro-api-key"] = api_key
 
     url = "https://api.coingecko.com/api/v3/coins/markets"
     params = {
@@ -24,12 +29,13 @@ def fetch_top_10_cryptos(currency="usd"):
     }
 
     try:
-        response = requests.get(url, headers=headers, params=params)
+        response = requests.get(url, params=params, headers=headers)
         response.raise_for_status()
         data = response.json()
-        CACHE[currency] = data
-        CACHE_TIMESTAMP = now
+        _cache[currency] = data
+        _cache_timestamp[currency] = now
         return data
     except requests.RequestException as e:
         print(f"API error: {e}")
         return []
+
