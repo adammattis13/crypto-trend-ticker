@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 from crypto_data import fetch_selected_cryptos
+import altair as alt
 
 st.set_page_config(page_title="Crypto Trend Ticker", layout="wide")
 
@@ -16,7 +17,7 @@ currency = st.selectbox("Select currency", ["usd", "eur", "btc"], index=0)
 data = fetch_selected_cryptos(currency)
 now = datetime.now()
 
-# Initialize session state if needed
+# Initialize session history
 if "history" not in st.session_state:
     st.session_state.history = {}
 
@@ -51,18 +52,30 @@ for coin in data:
     else:
         combined_df = pd.merge(combined_df, temp_df, on="Time", how="outer")
 
-# Display chart
+# Display chart using Altair with autoscaling
 if not combined_df.empty and "Time" in combined_df.columns:
     combined_df.sort_values("Time", inplace=True)
     combined_df.fillna(method="ffill", inplace=True)
     combined_df.set_index("Time", inplace=True)
 
-    st.line_chart(combined_df, use_container_width=True)
-    st.caption("Data from CoinGecko. Updates every minute.")
+    melted_df = combined_df.reset_index().melt("Time", var_name="Coin", value_name="Price")
+
+    chart = alt.Chart(melted_df).mark_line().encode(
+        x=alt.X("Time:T", title="Time"),
+        y=alt.Y("Price:Q", title=f"Price ({currency.upper()})", scale=alt.Scale(zero=False)),
+        color=alt.Color("Coin:N", title="Cryptocurrency")
+    ).properties(
+        width="container",
+        height=500,
+        title="Live Crypto Price Trends"
+    ).interactive()
+
+    st.altair_chart(chart, use_container_width=True)
+    st.caption("Data from CoinGecko. Autoscaled view. Updates every minute.")
 else:
     st.warning("Waiting for data... Please wait a minute for initial history to build.")
 
-# Optional: Hide footer and deploy button
+# Optional: Hide Streamlit footer
 st.markdown("""
     <style>
         footer {visibility: hidden;}
