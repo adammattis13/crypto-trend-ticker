@@ -2,7 +2,7 @@ import requests
 import streamlit as st
 import time
 
-# Persistent cache (in module scope)
+# Persistent cache per currency
 _cache = {}
 _cache_timestamp = {}
 CACHE_TTL = 180  # 3 minutes
@@ -10,7 +10,7 @@ CACHE_TTL = 180  # 3 minutes
 def fetch_top_10_cryptos(currency="usd"):
     now = time.time()
 
-    # Check cache validity
+    # Serve from cache if fresh
     if currency in _cache and now - _cache_timestamp.get(currency, 0) < CACHE_TTL:
         return _cache[currency]
 
@@ -38,4 +38,3 @@ def fetch_top_10_cryptos(currency="usd"):
     except requests.RequestException as e:
         print(f"API error: {e}")
         return []
-
